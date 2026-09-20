@@ -118,6 +118,8 @@
       gap: 12px;
 
       padding: 20px 0;
+
+      overflow-y: auto;
     }
 
     .welcome {
@@ -199,6 +201,10 @@
       font-size: 14px;
     }
 
+    input:focus {
+      border-color: rgba(79, 140, 255, 0.6);
+    }
+
     input::placeholder {
       color: #78849b;
     }
@@ -214,12 +220,22 @@
       color: white;
 
       font-size: 18px;
+      font-weight: bold;
 
       cursor: pointer;
+
+      transition:
+        transform 0.15s ease,
+        opacity 0.15s ease;
     }
 
     button:active {
       transform: scale(0.94);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .debug {
@@ -229,6 +245,8 @@
       color: #65728b;
 
       text-align: center;
+
+      min-height: 15px;
     }
   </style>
 </head>
@@ -288,6 +306,8 @@
 
       <button
         id="sendButton"
+        type="button"
+        aria-label="Send message"
       >
         ↑
       </button>
@@ -298,110 +318,96 @@
       class="debug"
       id="debug"
     >
-      Core initializing...
+      Connecting to Isai Core...
     </div>
 
   </main>
 
   <script type="module">
 
-    import { isaiBrain }
-      from "./core/brain.js";
+    import { isaiBrain } from "./core/brain.js";
 
-    const input =
-      document.getElementById(
-        "messageInput"
-      );
+    const input = document.getElementById("messageInput");
+    const button = document.getElementById("sendButton");
+    const chat = document.getElementById("chat");
+    const welcome = document.getElementById("welcome");
+    const debug = document.getElementById("debug");
 
-    const button =
-      document.getElementById(
-        "sendButton"
-      );
-
-    const chat =
-      document.getElementById(
-        "chat"
-      );
-
-    const welcome =
-      document.getElementById(
-        "welcome"
-      );
-
-    const debug =
-      document.getElementById(
-        "debug"
-      );
-
-    function addMessage(
-      text,
-      type
-    ) {
+    function addMessage(text, type) {
 
       if (welcome) {
         welcome.remove();
       }
 
-      const message =
-        document.createElement(
-          "div"
-        );
+      const message = document.createElement("div");
 
-      message.className =
-        `message ${type}`;
+      message.className = `message ${type}`;
 
       message.textContent = text;
 
       chat.appendChild(message);
 
-      chat.scrollTop =
-        chat.scrollHeight;
+      chat.scrollTop = chat.scrollHeight;
     }
 
     async function sendMessage() {
 
-      const text =
-        input.value.trim();
+      const text = input.value.trim();
 
-      if (!text) return;
+      if (!text) {
+        return;
+      }
 
-      addMessage(
-        text,
-        "user"
-      );
+      addMessage(text, "user");
 
       input.value = "";
 
+      button.disabled = true;
+
+      debug.textContent = "Isai Core · Thinking...";
+
       try {
 
-        const result =
-          await isaiBrain.process({
-            text,
-            userPresent: true,
-            meaningful: text.length > 80
-          });
+        const result = await isaiBrain.process({
+          text: text,
+          userPresent: true,
+          meaningful: text.length > 80
+        });
+
+        const emotion =
+          result.emotionalState;
+
+        const memoryCount =
+          result.reflection.relevantMemories.length;
 
         debug.textContent =
-          `Core active · Memories: ${
-            result.reflection
-              .relevantMemories.length
-          } · Mood: ${
-            result.emotionalState.mood
-          }`;
+          `Isai Core · ${emotion.mood} · Memories: ${memoryCount}`;
 
         addMessage(
-          "Isai Core received this. My reasoning layer is connected.",
+          "I received you. My Core is connected and learning from this conversation.",
           "isai"
         );
 
       } catch (error) {
 
-        console.error(error);
+        console.error(
+          "ISAI CORE ERROR:",
+          error
+        );
+
+        debug.textContent =
+          "Isai Core · Connection error";
 
         addMessage(
-          "Isai Core encountered a connection error.",
+          "My Core connection has a problem. Check the core files and try again.",
           "isai"
         );
+
+      } finally {
+
+        button.disabled = false;
+
+        input.focus();
 
       }
     }
@@ -413,9 +419,10 @@
 
     input.addEventListener(
       "keydown",
-      event => {
+      function(event) {
 
         if (event.key === "Enter") {
+          event.preventDefault();
           sendMessage();
         }
 
@@ -424,6 +431,8 @@
 
     debug.textContent =
       "Isai Core · Memory · Emotion · Relationship · Reflection · Initiative";
+
+    input.focus();
 
   </script>
 
