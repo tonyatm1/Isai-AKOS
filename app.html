@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Isai · AKOS</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, #18233d, #060910 60%);
+      color: white;
+      font-family: system-ui, sans-serif;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+      min-height: 100vh;
+      margin: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0 25px;
+    }
+
+    .core {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+
+      background:
+        radial-gradient(
+          circle,
+          white,
+          #80c8ff 30%,
+          #477cff 55%,
+          #10172b
+        );
+
+      box-shadow:
+        0 0 18px #477cff,
+        0 0 40px rgba(71,124,255,.4);
+
+      animation: pulse 2.5s infinite;
+    }
+
+    @keyframes pulse {
+      50% {
+        transform: scale(1.08);
+      }
+    }
+
+    .name {
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .status {
+      color: #65ffae;
+      font-size: 11px;
+      margin-top: 3px;
+    }
+
+    .chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 12px;
+      padding-bottom: 20px;
+    }
+
+    .welcome {
+      text-align: center;
+      color: #aab5ca;
+      padding: 30px 10px;
+    }
+
+    .welcome h1 {
+      color: white;
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 15px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #315ca8;
+      border-bottom-right-radius: 5px;
+    }
+
+    .isai {
+      align-self: flex-start;
+      background: rgba(255,255,255,.08);
+      border-bottom-left-radius: 5px;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 8px;
+    }
+
+    input {
+      flex: 1;
+      padding: 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.07);
+      color: white;
+      outline: none;
+    }
+
+    button {
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 50%;
+      background: #315ca8;
+      color: white;
+      font-size: 18px;
+    }
+
+    .debug {
+      text-align: center;
+      color: #66738b;
+      font-size: 10px;
+      padding: 10px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="app">
+
+    <header class="header">
+      <div class="core"></div>
+
+      <div>
+        <div class="name">ISAI</div>
+        <div class="status">AKOS CORE · ONLINE</div>
+      </div>
+    </header>
+
+    <section class="chat" id="chat">
+
+      <div class="welcome" id="welcome">
+        <h1>Isai</h1>
+
+        <p>
+          AKOS companion core is ready.
+          <br><br>
+          Memory · Emotion · Reflection · Initiative
+        </p>
+      </div>
+
+    </section>
+
+    <div class="input-area">
+
+      <input
+        id="messageInput"
+        type="text"
+        placeholder="Talk to Isai..."
+      >
+
+      <button id="sendButton">↑</button>
+
+    </div>
+
+    <div class="debug" id="debug">
+      Isai Core initializing...
+    </div>
+
+  </main>
+
+  <script type="module" src="./app.js"></script>
+
+</body>
+</html>
