@@ -1,1 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
 
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>ISAI · AKOS</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(
+          circle at top,
+          #18233d 0%,
+          #080b13 45%,
+          #030509 100%
+        );
+
+      color: #ffffff;
+      font-family:
+        Inter,
+        system-ui,
+        sans-serif;
+
+      display: flex;
+      justify-content: center;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+      min-height: 100vh;
+
+      display: flex;
+      flex-direction: column;
+
+      padding: 18px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      padding: 10px 4px 20px;
+    }
+
+    .identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .core {
+      width: 42px;
+      height: 42px;
+
+      border-radius: 50%;
+
+      background:
+        radial-gradient(
+          circle,
+          #ffffff 0%,
+          #a7d8ff 25%,
+          #4f8cff 55%,
+          #101b36 100%
+        );
+
+      box-shadow:
+        0 0 15px #4f8cff,
+        0 0 35px rgba(79, 140, 255, 0.4);
+
+      animation: pulse 2.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 0.9;
+      }
+
+      50% {
+        transform: scale(1.08);
+        opacity: 1;
+      }
+    }
+
+    .name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .status {
+      font-size: 11px;
+      color: #72ffb0;
+      margin-top: 3px;
+    }
+
+    .chat {
+      flex: 1;
+
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+
+      gap: 12px;
+
+      padding: 20px 0;
+    }
+
+    .welcome {
+      text-align: center;
+      padding: 30px 15px;
+      color: #aeb8cc;
+    }
+
+    .welcome h1 {
+      color: white;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .welcome p {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 15px;
+      border-radius: 18px;
+
+      font-size: 14px;
+      line-height: 1.5;
+
+      animation: appear 0.25s ease;
+    }
+
+    @keyframes appear {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .user {
+      align-self: flex-end;
+
+      background: #315ca8;
+      border-bottom-right-radius: 5px;
+    }
+
+    .isai {
+      align-self: flex-start;
+
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+
+      border-bottom-left-radius: 5px;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 8px;
+
+      padding-top: 10px;
+    }
+
+    input {
+      flex: 1;
+
+      border: 1px solid rgba(255,255,255,0.12);
+      outline: none;
+
+      background: rgba(255,255,255,0.06);
+      color: white;
+
+      border-radius: 18px;
+
+      padding: 13px 15px;
+
+      font-size: 14px;
+    }
+
+    input::placeholder {
+      color: #78849b;
+    }
+
+    button {
+      width: 48px;
+      height: 48px;
+
+      border: none;
+      border-radius: 50%;
+
+      background: #315ca8;
+      color: white;
+
+      font-size: 18px;
+
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.94);
+    }
+
+    .debug {
+      margin-top: 12px;
+
+      font-size: 10px;
+      color: #65728b;
+
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="app">
+
+    <header class="header">
+
+      <div class="identity">
+
+        <div class="core"></div>
+
+        <div>
+          <div class="name">
+            ISAI
+          </div>
+
+          <div class="status">
+            AKOS CORE · ONLINE
+          </div>
+        </div>
+
+      </div>
+
+    </header>
+
+    <section
+      class="chat"
+      id="chat"
+    >
+
+      <div
+        class="welcome"
+        id="welcome"
+      >
+        <h1>Isai</h1>
+
+        <p>
+          Your AKOS companion core is ready.
+          <br>
+          Memory · Emotion · Reflection · Initiative
+        </p>
+      </div>
+
+    </section>
+
+    <div class="input-area">
+
+      <input
+        id="messageInput"
+        type="text"
+        placeholder="Talk to Isai..."
+        autocomplete="off"
+      >
+
+      <button
+        id="sendButton"
+      >
+        ↑
+      </button>
+
+    </div>
+
+    <div
+      class="debug"
+      id="debug"
+    >
+      Core initializing...
+    </div>
+
+  </main>
+
+  <script type="module">
+
+    import { isaiBrain }
+      from "./core/brain.js";
+
+    const input =
+      document.getElementById(
+        "messageInput"
+      );
+
+    const button =
+      document.getElementById(
+        "sendButton"
+      );
+
+    const chat =
+      document.getElementById(
+        "chat"
+      );
+
+    const welcome =
+      document.getElementById(
+        "welcome"
+      );
+
+    const debug =
+      document.getElementById(
+        "debug"
+      );
+
+    function addMessage(
+      text,
+      type
+    ) {
+
+      if (welcome) {
+        welcome.remove();
+      }
+
+      const message =
+        document.createElement(
+          "div"
+        );
+
+      message.className =
+        `message ${type}`;
+
+      message.textContent = text;
+
+      chat.appendChild(message);
+
+      chat.scrollTop =
+        chat.scrollHeight;
+    }
+
+    async function sendMessage() {
+
+      const text =
+        input.value.trim();
+
+      if (!text) return;
+
+      addMessage(
+        text,
+        "user"
+      );
+
+      input.value = "";
+
+      try {
+
+        const result =
+          await isaiBrain.process({
+            text,
+            userPresent: true,
+            meaningful: text.length > 80
+          });
+
+        debug.textContent =
+          `Core active · Memories: ${
+            result.reflection
+              .relevantMemories.length
+          } · Mood: ${
+            result.emotionalState.mood
+          }`;
+
+        addMessage(
+          "Isai Core received this. My reasoning layer is connected.",
+          "isai"
+        );
+
+      } catch (error) {
+
+        console.error(error);
+
+        addMessage(
+          "Isai Core encountered a connection error.",
+          "isai"
+        );
+
+      }
+    }
+
+    button.addEventListener(
+      "click",
+      sendMessage
+    );
+
+    input.addEventListener(
+      "keydown",
+      event => {
+
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+
+      }
+    );
+
+    debug.textContent =
+      "Isai Core · Memory · Emotion · Relationship · Reflection · Initiative";
+
+  </script>
+
+</body>
+</html>
