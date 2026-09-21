@@ -140,5 +140,4 @@ export class InitiativeEngine {
   }
 }
 
-export const initiativeState =
-  new InitiativeEngine;
+export const initiativeState = null;
