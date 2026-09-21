@@ -8,6 +8,11 @@
     content="width=device-width, initial-scale=1.0"
   >
 
+  <meta
+    name="theme-color"
+    content="#080b13"
+  >
+
   <title>ISAI · AKOS</title>
 
   <style>
@@ -31,6 +36,8 @@
       font-family:
         Inter,
         system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
         sans-serif;
 
       display: flex;
@@ -125,6 +132,7 @@
     .welcome {
       text-align: center;
       padding: 30px 15px;
+
       color: #aeb8cc;
     }
 
@@ -140,14 +148,19 @@
     }
 
     .message {
-      max-width: 85%;
+      max-width: 88%;
+
       padding: 12px 15px;
+
       border-radius: 18px;
 
       font-size: 14px;
       line-height: 1.5;
 
       animation: appear 0.25s ease;
+
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     @keyframes appear {
@@ -166,6 +179,7 @@
       align-self: flex-end;
 
       background: #315ca8;
+
       border-bottom-right-radius: 5px;
     }
 
@@ -173,9 +187,15 @@
       align-self: flex-start;
 
       background: rgba(255,255,255,0.08);
+
       border: 1px solid rgba(255,255,255,0.08);
 
       border-bottom-left-radius: 5px;
+    }
+
+    .typing {
+      opacity: 0.65;
+      font-style: italic;
     }
 
     .input-area {
@@ -188,10 +208,14 @@
     input {
       flex: 1;
 
+      min-width: 0;
+
       border: 1px solid rgba(255,255,255,0.12);
+
       outline: none;
 
       background: rgba(255,255,255,0.06);
+
       color: white;
 
       border-radius: 18px;
@@ -209,14 +233,17 @@
       color: #78849b;
     }
 
-    button {
+    .control-button {
       width: 48px;
       height: 48px;
+
+      flex: 0 0 48px;
 
       border: none;
       border-radius: 50%;
 
       background: #315ca8;
+
       color: white;
 
       font-size: 18px;
@@ -229,19 +256,59 @@
         opacity 0.15s ease;
     }
 
-    button:active {
+    .control-button:active {
       transform: scale(0.94);
     }
 
-    button:disabled {
+    .control-button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
+    .mic-button {
+      background: #263b68;
+    }
+
+    .mic-button.listening {
+      background: #8b315d;
+      box-shadow:
+        0 0 15px rgba(255, 80, 150, 0.5);
+    }
+
+    .voice-row {
+      display: flex;
+      justify-content: center;
+
+      gap: 8px;
+
+      padding-top: 9px;
+    }
+
+    .small-button {
+      border: 1px solid rgba(255,255,255,0.1);
+
+      background: rgba(255,255,255,0.05);
+
+      color: #aeb8cc;
+
+      border-radius: 12px;
+
+      padding: 7px 11px;
+
+      font-size: 11px;
+
+      cursor: pointer;
+    }
+
+    .small-button:active {
+      transform: scale(0.96);
+    }
+
     .debug {
-      margin-top: 12px;
+      margin-top: 10px;
 
       font-size: 10px;
+
       color: #65728b;
 
       text-align: center;
@@ -266,14 +333,15 @@
             ISAI
           </div>
 
-          <div class="status">
-            AKOS CORE · ONLINE
+          <div class="status" id="status">
+            AKOS CORE · STARTING
           </div>
         </div>
 
       </div>
 
     </header>
+
 
     <section
       class="chat"
@@ -284,16 +352,21 @@
         class="welcome"
         id="welcome"
       >
+
         <h1>Isai</h1>
 
         <p>
           Your AKOS companion core is ready.
           <br>
           Memory · Emotion · Reflection · Initiative
+          <br><br>
+          Type or use the microphone.
         </p>
+
       </div>
 
     </section>
+
 
     <div class="input-area">
 
@@ -305,7 +378,17 @@
       >
 
       <button
+        id="micButton"
+        class="control-button mic-button"
+        type="button"
+        aria-label="Voice input"
+      >
+        🎙
+      </button>
+
+      <button
         id="sendButton"
+        class="control-button"
         type="button"
         aria-label="Send message"
       >
@@ -313,6 +396,28 @@
       </button>
 
     </div>
+
+
+    <div class="voice-row">
+
+      <button
+        id="stopVoiceButton"
+        class="small-button"
+        type="button"
+      >
+        🔇 Stop voice
+      </button>
+
+      <button
+        id="testVoiceButton"
+        class="small-button"
+        type="button"
+      >
+        🔊 Test voice
+      </button>
+
+    </div>
+
 
     <div
       class="debug"
@@ -323,15 +428,81 @@
 
   </main>
 
+
   <script type="module">
+
+    /*
+     * =========================================================
+     * ISAI · AKOS
+     * Main application controller
+     *
+     * Covers:
+     * - UI
+     * - Text chat
+     * - Core connection
+     * - Voice output
+     * - Voice input
+     * - Error handling
+     * - Mobile browser support
+     * =========================================================
+     */
+
 
     import { isaiBrain } from "./core/brain.js";
 
-    const input = document.getElementById("messageInput");
-    const button = document.getElementById("sendButton");
-    const chat = document.getElementById("chat");
-    const welcome = document.getElementById("welcome");
-    const debug = document.getElementById("debug");
+
+    /*
+     * ---------------------------------------------------------
+     * ELEMENTS
+     * ---------------------------------------------------------
+     */
+
+    const input =
+      document.getElementById("messageInput");
+
+    const sendButton =
+      document.getElementById("sendButton");
+
+    const micButton =
+      document.getElementById("micButton");
+
+    const stopVoiceButton =
+      document.getElementById("stopVoiceButton");
+
+    const testVoiceButton =
+      document.getElementById("testVoiceButton");
+
+    const chat =
+      document.getElementById("chat");
+
+    const welcome =
+      document.getElementById("welcome");
+
+    const debug =
+      document.getElementById("debug");
+
+    const status =
+      document.getElementById("status");
+
+
+    /*
+     * ---------------------------------------------------------
+     * STATE
+     * ---------------------------------------------------------
+     */
+
+    let recognition = null;
+
+    let listening = false;
+
+    let voices = [];
+
+
+    /*
+     * ---------------------------------------------------------
+     * MESSAGE UI
+     * ---------------------------------------------------------
+     */
 
     function addMessage(text, type) {
 
@@ -339,54 +510,484 @@
         welcome.remove();
       }
 
-      const message = document.createElement("div");
+      const message =
+        document.createElement("div");
 
-      message.className = `message ${type}`;
+      message.className =
+        `message ${type}`;
 
-      message.textContent = text;
+      message.textContent =
+        String(text);
 
       chat.appendChild(message);
 
-      chat.scrollTop = chat.scrollHeight;
+      chat.scrollTop =
+        chat.scrollHeight;
+
+      return message;
     }
 
-    async function sendMessage() {
 
-      const text = input.value.trim();
+    function addTypingMessage() {
+
+      if (welcome) {
+        welcome.remove();
+      }
+
+      const message =
+        document.createElement("div");
+
+      message.className =
+        "message isai typing";
+
+      message.textContent =
+        "Isai is thinking...";
+
+      chat.appendChild(message);
+
+      chat.scrollTop =
+        chat.scrollHeight;
+
+      return message;
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * VOICE OUTPUT
+     * ---------------------------------------------------------
+     */
+
+    function loadVoices() {
+
+      if (
+        "speechSynthesis" in window
+      ) {
+
+        voices =
+          window.speechSynthesis.getVoices();
+
+      }
+    }
+
+
+    if (
+      "speechSynthesis" in window
+    ) {
+
+      loadVoices();
+
+      window.speechSynthesis
+        .addEventListener(
+          "voiceschanged",
+          loadVoices
+        );
+
+    }
+
+
+    function speak(text) {
+
+      if (
+        !("speechSynthesis" in window)
+      ) {
+
+        debug.textContent =
+          "Voice output is not supported in this browser.";
+
+        return;
+
+      }
+
 
       if (!text) {
         return;
       }
 
-      addMessage(text, "user");
-
-      input.value = "";
-
-      button.disabled = true;
-
-      debug.textContent = "Isai Core · Thinking...";
 
       try {
 
-        const result = await isaiBrain.process({
-          text: text,
-          userPresent: true,
-          meaningful: text.length > 80
-        });
+        window.speechSynthesis.cancel();
 
-        const emotion =
-          result.emotionalState;
 
-        const memoryCount =
-          result.reflection.relevantMemories.length;
+        const utterance =
+          new SpeechSynthesisUtterance(
+            String(text)
+          );
+
+
+        /*
+         * Prefer an Indian English voice
+         * when the browser provides one.
+         */
+
+        const preferredVoice =
+          voices.find(
+            voice =>
+              voice.lang === "en-IN"
+          ) ||
+          voices.find(
+            voice =>
+              voice.lang.startsWith("en")
+          );
+
+
+        if (preferredVoice) {
+
+          utterance.voice =
+            preferredVoice;
+
+        }
+
+
+        utterance.lang =
+          preferredVoice
+            ? preferredVoice.lang
+            : "en-IN";
+
+
+        utterance.rate =
+          0.95;
+
+        utterance.pitch =
+          1.05;
+
+        utterance.volume =
+          1;
+
+
+        utterance.onstart =
+          function() {
+
+            debug.textContent =
+              "Isai · Speaking...";
+
+          };
+
+
+        utterance.onend =
+          function() {
+
+            debug.textContent =
+              "Isai Core · Ready";
+
+          };
+
+
+        utterance.onerror =
+          function(error) {
+
+            console.warn(
+              "ISAI VOICE ERROR:",
+              error
+            );
+
+            debug.textContent =
+              "Isai · Voice unavailable";
+
+          };
+
+
+        window.speechSynthesis
+          .speak(utterance);
+
+      } catch (error) {
+
+        console.error(
+          "VOICE ERROR:",
+          error
+        );
+
+      }
+
+    }
+
+
+    function stopVoice() {
+
+      if (
+        "speechSynthesis" in window
+      ) {
+
+        window.speechSynthesis.cancel();
 
         debug.textContent =
-          `Isai Core · ${emotion.mood} · Memories: ${memoryCount}`;
+          "Isai · Voice stopped";
+
+      }
+
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * CORE RESPONSE EXTRACTION
+     * ---------------------------------------------------------
+     *
+     * Different brain versions may return different names.
+     * We safely check several common fields.
+     */
+
+    function extractResponse(result) {
+
+      if (!result) {
+
+        return null;
+
+      }
+
+
+      if (
+        typeof result === "string"
+      ) {
+
+        return result;
+
+      }
+
+
+      const possibleFields = [
+
+        result.response,
+
+        result.reply,
+
+        result.text,
+
+        result.message,
+
+        result.output,
+
+        result.answer,
+
+        result.content
+
+      ];
+
+
+      for (
+        const value of possibleFields
+      ) {
+
+        if (
+          typeof value === "string" &&
+          value.trim()
+        ) {
+
+          return value.trim();
+
+        }
+
+      }
+
+
+      /*
+       * Some systems may return:
+       *
+       * { message: { text: "..." } }
+       *
+       */
+
+      if (
+        result.message &&
+        typeof result.message === "object" &&
+        typeof result.message.text === "string"
+      ) {
+
+        return result.message.text;
+
+      }
+
+
+      /*
+       * If the core gives no direct reply,
+       * return a safe fallback.
+       */
+
+      return null;
+
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * DEBUG INFORMATION
+     * ---------------------------------------------------------
+     */
+
+    function updateCoreDebug(result) {
+
+      try {
+
+        const emotion =
+          result?.emotionalState?.mood;
+
+        const memories =
+          Array.isArray(
+            result?.reflection?.relevantMemories
+          )
+            ? result.reflection.relevantMemories.length
+            : 0;
+
+
+        if (emotion) {
+
+          debug.textContent =
+            `Isai Core · ${emotion} · Memories: ${memories}`;
+
+        } else {
+
+          debug.textContent =
+            `Isai Core · Connected · Memories: ${memories}`;
+
+        }
+
+      } catch {
+
+        debug.textContent =
+          "Isai Core · Connected";
+
+      }
+
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * SEND MESSAGE
+     * ---------------------------------------------------------
+     */
+
+    async function sendMessage() {
+
+      const text =
+        input.value.trim();
+
+
+      if (!text) {
+
+        return;
+
+      }
+
+
+      addMessage(
+        text,
+        "user"
+      );
+
+
+      input.value = "";
+
+      sendButton.disabled = true;
+
+      micButton.disabled = true;
+
+
+      debug.textContent =
+        "Isai Core · Thinking...";
+
+
+      const typing =
+        addTypingMessage();
+
+
+      try {
+
+        /*
+         * Send the user's message
+         * into the existing Isai Core.
+         */
+
+        const result =
+          await isaiBrain.process({
+
+            text: text,
+
+            userPresent: true,
+
+            meaningful:
+              text.length > 80
+
+          });
+
+
+        /*
+         * Remove thinking bubble.
+         */
+
+        typing.remove();
+
+
+        /*
+         * Update Core information.
+         */
+
+        updateCoreDebug(
+          result
+        );
+
+
+        /*
+         * Extract actual Isai reply.
+         */
+
+        const reply =
+          extractResponse(
+            result
+          );
+
+
+        /*
+         * If brain.js does not currently
+         * return a reply field, show a
+         * useful diagnostic instead of
+         * pretending the fixed message
+         * is Isai's actual response.
+         */
+
+        if (!reply) {
+
+          console.log(
+            "ISAI CORE RESULT:",
+            result
+          );
+
+
+          const diagnostic =
+            "My Core received your message, but brain.js did not return a response text yet.";
+
+          addMessage(
+            diagnostic,
+            "isai"
+          );
+
+          debug.textContent =
+            "Isai Core · Response field missing";
+
+          return;
+
+        }
+
+
+        /*
+         * Show actual response.
+         */
 
         addMessage(
-          "I received you. My Core is connected and learning from this conversation.",
+          reply,
           "isai"
         );
+
+
+        /*
+         * Speak actual response.
+         */
+
+        speak(
+          reply
+        );
+
 
       } catch (error) {
 
@@ -395,42 +996,256 @@
           error
         );
 
+
+        if (typing) {
+
+          typing.remove();
+
+        }
+
+
         debug.textContent =
           "Isai Core · Connection error";
 
+
         addMessage(
-          "My Core connection has a problem. Check the core files and try again.",
+          "My Core connection has a problem. Please check the core files.",
           "isai"
         );
 
       } finally {
 
-        button.disabled = false;
+        sendButton.disabled =
+          false;
+
+        micButton.disabled =
+          false;
 
         input.focus();
 
       }
+
     }
 
-    button.addEventListener(
+
+    /*
+     * ---------------------------------------------------------
+     * VOICE INPUT
+     * ---------------------------------------------------------
+     *
+     * Uses browser SpeechRecognition when available.
+     */
+
+    function setupVoiceInput() {
+
+      const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+
+      if (!SpeechRecognition) {
+
+        micButton.disabled =
+          true;
+
+        micButton.title =
+          "Voice input is not supported here";
+
+        return;
+
+      }
+
+
+      recognition =
+        new SpeechRecognition();
+
+
+      recognition.continuous =
+        false;
+
+
+      recognition.interimResults =
+        false;
+
+
+      recognition.lang =
+        "en-IN";
+
+
+      recognition.onstart =
+        function() {
+
+          listening = true;
+
+          micButton.classList.add(
+            "listening"
+          );
+
+          debug.textContent =
+            "Isai · Listening...";
+
+        };
+
+
+      recognition.onresult =
+        function(event) {
+
+          const transcript =
+            event
+              .results[0][0]
+              .transcript;
+
+
+          input.value =
+            transcript;
+
+        };
+
+
+      recognition.onerror =
+        function(event) {
+
+          console.warn(
+            "VOICE INPUT ERROR:",
+            event
+          );
+
+          debug.textContent =
+            "Isai · Voice input error";
+
+        };
+
+
+      recognition.onend =
+        function() {
+
+          listening = false;
+
+          micButton.classList.remove(
+            "listening"
+          );
+
+          if (
+            input.value.trim()
+          ) {
+
+            sendMessage();
+
+          } else {
+
+            debug.textContent =
+              "Isai Core · Ready";
+
+          }
+
+        };
+
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * BUTTON EVENTS
+     * ---------------------------------------------------------
+     */
+
+    sendButton.addEventListener(
       "click",
       sendMessage
     );
+
 
     input.addEventListener(
       "keydown",
       function(event) {
 
-        if (event.key === "Enter") {
+        if (
+          event.key === "Enter"
+        ) {
+
           event.preventDefault();
+
           sendMessage();
+
         }
 
       }
     );
 
+
+    micButton.addEventListener(
+      "click",
+      function() {
+
+        if (!recognition) {
+
+          debug.textContent =
+            "Voice input is not supported.";
+
+          return;
+
+        }
+
+
+        if (listening) {
+
+          recognition.stop();
+
+        } else {
+
+          try {
+
+            recognition.start();
+
+          } catch (error) {
+
+            console.warn(
+              "Recognition start:",
+              error
+            );
+
+          }
+
+        }
+
+      }
+    );
+
+
+    stopVoiceButton.addEventListener(
+      "click",
+      stopVoice
+    );
+
+
+    testVoiceButton.addEventListener(
+      "click",
+      function() {
+
+        speak(
+          "Hello Akash. This is Isai voice test. AKOS Core is ready."
+        );
+
+      }
+    );
+
+
+    /*
+     * ---------------------------------------------------------
+     * INITIALIZE
+     * ---------------------------------------------------------
+     */
+
+    setupVoiceInput();
+
+
+    status.textContent =
+      "AKOS CORE · ONLINE";
+
+
     debug.textContent =
       "Isai Core · Memory · Emotion · Relationship · Reflection · Initiative";
+
 
     input.focus();
 
