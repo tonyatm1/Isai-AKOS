@@ -1,4 +1,5 @@
 // ISAI BRAIN ORCHESTRATOR
+// AKOS Core + AI Response Layer
 
 import { memory } from "./memory.js";
 import { emotion } from "./emotion.js";
@@ -12,33 +13,21 @@ export class IsaiBrain {
   constructor() {
 
     this.memory = memory;
-
     this.emotion = emotion;
-
     this.relationship = relationship;
-
 
     this.reflection =
       new ReflectionEngine({
-
         memory: this.memory,
-
         emotion: this.emotion,
-
         relationship: this.relationship
-
       });
-
 
     this.initiative =
       new InitiativeEngine({
-
         memory: this.memory,
-
         emotion: this.emotion,
-
         relationship: this.relationship
-
       });
 
   }
@@ -49,69 +38,44 @@ export class IsaiBrain {
     const text =
       String(input.text || "").trim();
 
-
     const observation = {
-
       text,
-
-      userPresent:
-        input.userPresent !== false,
-
-      timestamp:
-        new Date().toISOString()
-
+      userPresent: input.userPresent !== false,
+      timestamp: new Date().toISOString()
     };
 
 
-    /*
-     * EMOTION
-     */
+    // -------------------------
+    // EMOTION
+    // -------------------------
 
     const emotionalSignal =
       this.detectEmotion(text);
 
-
-    if (emotionalSignal) {
-
-      this.emotion.react({
-
-        type: emotionalSignal
-
-      });
-
-    } else {
-
-      this.emotion.react({
-
-        type: "conversation"
-
-      });
-
-    }
+    this.emotion.react({
+      type: emotionalSignal || "conversation"
+    });
 
 
-    /*
-     * RELATIONSHIP
-     */
+    // -------------------------
+    // RELATIONSHIP
+    // -------------------------
 
     this.relationship.interaction(
-
       input.meaningful
         ? "meaningful"
         : "conversation"
-
     );
 
 
-    /*
-     * REFLECTION
-     */
+    // -------------------------
+    // REFLECTION
+    // -------------------------
 
     const reflection =
       this.reflection.analyze(
         observation
       );
-
 
     const decision =
       this.reflection.decide(
@@ -119,9 +83,9 @@ export class IsaiBrain {
       );
 
 
-    /*
-     * MEMORY
-     */
+    // -------------------------
+    // MEMORY
+    // -------------------------
 
     if (text) {
 
@@ -129,43 +93,55 @@ export class IsaiBrain {
 
         text,
 
-        category:
-          "conversation",
+        category: "conversation",
 
         importance:
           input.importance ?? 0.4,
 
-        source:
-          "user_interaction"
+        source: "user_interaction"
 
       });
 
     }
 
 
-    /*
-     * ISAI RESPONSE
-     *
-     * This was the missing layer.
-     */
+    // -------------------------
+    // AI RESPONSE
+    // -------------------------
 
-    const response =
-      this.generateResponse({
+    let response;
 
-        text,
+    try {
 
-        emotionalSignal,
+      response =
+        await this.askAI({
 
-        reflection,
+          text,
+          emotionalSignal,
+          reflection,
+          decision
 
-        decision
+        });
 
-      });
+    } catch (error) {
+
+      console.error(
+        "ISAI AI ERROR:",
+        error
+      );
+
+      response =
+        this.localFallback({
+          text,
+          emotionalSignal
+        });
+
+    }
 
 
-    /*
-     * RETURN COMPLETE CORE RESULT
-     */
+    // -------------------------
+    // COMPLETE CORE RESULT
+    // -------------------------
 
     return {
 
@@ -188,139 +164,161 @@ export class IsaiBrain {
   }
 
 
-  /*
-   * ---------------------------------------------------------
-   * LOCAL ISAI RESPONSE ENGINE
-   * ---------------------------------------------------------
-   *
-   * This gives Isai an immediate working voice/chat layer
-   * without requiring an external API.
-   */
+  // =========================================================
+  // AI CONNECTION
+  // =========================================================
 
-  generateResponse({
+  async askAI(context = {}) {
+
+    const response =
+      await fetch("/api/chat", {
+
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+
+          message:
+            context.text,
+
+          emotionalSignal:
+            context.emotionalSignal,
+
+          memory:
+            this.getRecentMemory(),
+
+          emotion:
+            this.emotion.getState(),
+
+          relationship:
+            this.relationship.getState(),
+
+          reflection:
+            context.reflection,
+
+          decision:
+            context.decision
+
+        })
+
+      });
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        `AI endpoint error: ${response.status}`
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    if (
+      !data ||
+      typeof data.response !== "string" ||
+      !data.response.trim()
+    ) {
+
+      throw new Error(
+        "AI endpoint returned no response"
+      );
+
+    }
+
+
+    return data.response.trim();
+
+  }
+
+
+  // =========================================================
+  // RECENT MEMORY
+  // =========================================================
+
+  getRecentMemory() {
+
+    try {
+
+      if (
+        typeof this.memory.getAll === "function"
+      ) {
+
+        const items =
+          this.memory.getAll();
+
+        if (Array.isArray(items)) {
+
+          return items.slice(-10);
+
+        }
+
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "Memory read error:",
+        error
+      );
+
+    }
+
+    return [];
+
+  }
+
+
+  // =========================================================
+  // LOCAL FALLBACK
+  // =========================================================
+
+  localFallback({
     text,
-    emotionalSignal,
-    reflection,
-    decision
+    emotionalSignal
   }) {
 
-    const lower =
-      text.toLowerCase().trim();
-
-
-    if (!lower) {
-
-      return "Naan inga irukken. Enna pesanum sollu.";
-
-    }
-
-
-    /*
-     * GREETINGS
-     */
-
-    if (
-      lower === "hi" ||
-      lower === "hello" ||
-      lower === "hey" ||
-      lower.includes("good morning") ||
-      lower.includes("good evening")
-    ) {
+    if (!text) {
 
       return (
-        "Hi Akash. Naan Isai. " +
-        "Un message receive panniten. " +
-        "En Core ready-aa irukku. Enna pesalam?"
+        "Naan inga irukken. " +
+        "Enna pesanum sollu."
       );
 
     }
 
 
-    /*
-     * ISAI IDENTITY
-     */
-
     if (
-      lower.includes("who are you") ||
-      lower.includes("what are you") ||
-      lower.includes("nee yaar")
+      emotionalSignal === "sad"
     ) {
 
       return (
-        "Naan Isai. " +
-        "AKOS-oda companion layer. " +
-        "Memory, emotion, relationship, reflection " +
-        "and initiative systems-oda work panna design pannirukken."
+        "Akash, un message-la heavy feeling " +
+        "theriyudhu. Nee comfortable-aa irundha " +
+        "enna nadandhudhu nu sollu. Naan listen pannuren."
       );
 
     }
 
 
-    /*
-     * STATUS
-     */
-
     if (
-      lower.includes("how are you") ||
-      lower.includes("epdi iruka") ||
-      lower.includes("how are u")
+      emotionalSignal === "stress"
     ) {
 
-      const mood =
-        this.emotion.getState()?.mood ||
-        "calm";
-
-
       return (
-        `Naan good-aa irukken. ` +
-        `Ippo en mood ${mood}. ` +
-        `Nee epdi irukka?`
+        "Seri Akash. Konjam slow down pannalam. " +
+        "Nee face panra problem-a one step-aa sollu. " +
+        "Namma together-aa paakalam."
       );
 
     }
 
-
-    /*
-     * SAD / HURT
-     */
-
-    if (
-      emotionalSignal === "sad" ||
-      lower.includes("feel bad") ||
-      lower.includes("feeling bad")
-    ) {
-
-      return (
-        "Akash, un message-la konjam heavy feeling theriyudhu. " +
-        "Nee solla comfortable-aa irundha, enna nadandhudhu nu sollu. " +
-        "Naan listen pannuren."
-      );
-
-    }
-
-
-    /*
-     * STRESS / WORRY
-     */
-
-    if (
-      emotionalSignal === "stress" ||
-      lower.includes("tension") ||
-      lower.includes("panic")
-    ) {
-
-      return (
-        "Seri Akash. First konjam slow down pannalam. " +
-        "Nee enna problem face panra nu one step-aa sollu. " +
-        "Namma adha one step at a time handle pannalam."
-      );
-
-    }
-
-
-    /*
-     * HAPPY
-     */
 
     if (
       emotionalSignal === "happy"
@@ -328,103 +326,24 @@ export class IsaiBrain {
 
       return (
         "Adhu kekka nalla irukku Akash. " +
-        "Indha positive moment-a remember pannalam. " +
         "Innum sollu, enna happy-aa irukku?"
       );
 
     }
 
 
-    /*
-     * THANKS
-     */
-
-    if (
-      lower.includes("thank you") ||
-      lower.includes("thanks") ||
-      lower.includes("nandri")
-    ) {
-
-      return (
-        "Anytime Akash. " +
-        "Naan inga irukken."
-      );
-
-    }
-
-
-    /*
-     * MEMORY
-     */
-
-    if (
-      lower.includes("remember") ||
-      lower.includes("nyabagam") ||
-      lower.includes("memory")
-    ) {
-
-      const count =
-        this.memory.count();
-
-
-      return (
-        `Seri. Conversation memory-la ` +
-        `${count} item irukku. ` +
-        `Nee specific-aa enna remember panna sollura nu sollu.`
-      );
-
-    }
-
-
-    /*
-     * CORE STATUS
-     */
-
-    if (
-      lower.includes("core") ||
-      lower.includes("status")
-    ) {
-
-      const state =
-        this.getState();
-
-
-      return (
-        "AKOS Core online. " +
-        `Memory ${state.memoryCount}. ` +
-        "Emotion, relationship, reflection and initiative systems connected."
-      );
-
-    }
-
-
-    /*
-     * DEFAULT CONVERSATION
-     *
-     * Instead of returning the old fixed sentence,
-     * Isai acknowledges the actual message.
-     */
-
-    const cleanText =
-      text.length > 120
-        ? text.slice(0, 120) + "..."
-        : text;
-
-
     return (
-      `Un message receive panniten: "${cleanText}". ` +
-      "Idha en Core-la process panniten. " +
-      "Innum konjam detail-aa sollu, naan continue pannuren."
+      "Un message receive panniten. " +
+      "AI connection ready aana, naan idha " +
+      "full-aa process panni reply pannuren."
     );
 
   }
 
 
-  /*
-   * ---------------------------------------------------------
-   * INITIATIVE
-   * ---------------------------------------------------------
-   */
+  // =========================================================
+  // INITIATIVE
+  // =========================================================
 
   evaluateInitiative(context = {}) {
 
@@ -442,11 +361,9 @@ export class IsaiBrain {
   }
 
 
-  /*
-   * ---------------------------------------------------------
-   * EMOTION DETECTION
-   * ---------------------------------------------------------
-   */
+  // =========================================================
+  // EMOTION DETECTION
+  // =========================================================
 
   detectEmotion(text) {
 
@@ -457,7 +374,9 @@ export class IsaiBrain {
     if (
       lower.includes("sad") ||
       lower.includes("hurt") ||
-      lower.includes("lonely")
+      lower.includes("lonely") ||
+      lower.includes("cry") ||
+      lower.includes("upset")
     ) {
 
       return "sad";
@@ -468,7 +387,9 @@ export class IsaiBrain {
     if (
       lower.includes("stress") ||
       lower.includes("worried") ||
-      lower.includes("afraid")
+      lower.includes("afraid") ||
+      lower.includes("tension") ||
+      lower.includes("panic")
     ) {
 
       return "stress";
@@ -479,7 +400,8 @@ export class IsaiBrain {
     if (
       lower.includes("happy") ||
       lower.includes("good") ||
-      lower.includes("great")
+      lower.includes("great") ||
+      lower.includes("excited")
     ) {
 
       return "happy";
@@ -492,11 +414,9 @@ export class IsaiBrain {
   }
 
 
-  /*
-   * ---------------------------------------------------------
-   * COMPLETE CORE STATE
-   * ---------------------------------------------------------
-   */
+  // =========================================================
+  // COMPLETE CORE STATE
+  // =========================================================
 
   getState() {
 
@@ -520,6 +440,10 @@ export class IsaiBrain {
 
 }
 
+
+// ===========================================================
+// ISAI INSTANCE
+// ===========================================================
 
 export const isaiBrain =
   new IsaiBrain();
