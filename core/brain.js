@@ -1,449 +1,232 @@
-// ISAI BRAIN ORCHESTRATOR
-// AKOS Core + AI Response Layer
-
-import { memory } from "./memory.js";
-import { emotion } from "./emotion.js";
-import { relationship } from "./relationship.js";
+import { Memory } from "./memory.js";
+import { Emotion } from "./emotion.js";
+import { Relationship } from "./relationship.js";
 import { ReflectionEngine } from "./reflection.js";
 import { InitiativeEngine } from "./initiative.js";
 
-
-export class IsaiBrain {
-
+class IsaiBrain {
   constructor() {
+    this.memory = new Memory();
+    this.emotion = new Emotion();
+    this.relationship = new Relationship();
 
-    this.memory = memory;
-    this.emotion = emotion;
-    this.relationship = relationship;
-
-    this.reflection =
-      new ReflectionEngine({
-        memory: this.memory,
-        emotion: this.emotion,
-        relationship: this.relationship
-      });
-
-    this.initiative =
-      new InitiativeEngine({
-        memory: this.memory,
-        emotion: this.emotion,
-        relationship: this.relationship
-      });
-
-  }
-
-
-  async process(input = {}) {
-
-    const text =
-      String(input.text || "").trim();
-
-    const observation = {
-      text,
-      userPresent: input.userPresent !== false,
-      timestamp: new Date().toISOString()
-    };
-
-
-    // -------------------------
-    // EMOTION
-    // -------------------------
-
-    const emotionalSignal =
-      this.detectEmotion(text);
-
-    this.emotion.react({
-      type: emotionalSignal || "conversation"
+    this.reflection = new ReflectionEngine({
+      memory: this.memory,
+      emotion: this.emotion,
+      relationship: this.relationship
     });
 
+    this.initiative = new InitiativeEngine({
+      memory: this.memory,
+      emotion: this.emotion,
+      relationship: this.relationship
+    });
+  }
 
-    // -------------------------
-    // RELATIONSHIP
-    // -------------------------
+  async process(input = {}) {
+    const text = String(input.text || "").trim();
 
-    this.relationship.interaction(
-      input.meaningful
-        ? "meaningful"
-        : "conversation"
-    );
-
-
-    // -------------------------
-    // REFLECTION
-    // -------------------------
-
-    const reflection =
-      this.reflection.analyze(
-        observation
-      );
-
-    const decision =
-      this.reflection.decide(
-        reflection
-      );
-
-
-    // -------------------------
-    // MEMORY
-    // -------------------------
-
-    if (text) {
-
-      this.memory.add({
-
-        text,
-
-        category: "conversation",
-
-        importance:
-          input.importance ?? 0.4,
-
-        source: "user_interaction"
-
-      });
-
+    if (!text) {
+      return {
+        response: "Kanna, enna pesanum sollu."
+      };
     }
 
-
-    // -------------------------
-    // AI RESPONSE
-    // -------------------------
-
-    let response;
-
     try {
+      const emotionalSignal = this.detectEmotion(text);
 
-      response =
-        await this.askAI({
+      if (this.emotion?.update) {
+        this.emotion.update(emotionalSignal);
+      }
 
-          text,
-          emotionalSignal,
-          reflection,
-          decision
+      if (this.relationship?.interact) {
+        this.relationship.interact(text);
+      }
 
-        });
+      let reflection = null;
+      let decision = null;
 
-    } catch (error) {
-
-      console.error(
-        "ISAI AI ERROR:",
-        error
-      );
-
-      response =
-        this.localFallback({
+      if (this.reflection?.analyze) {
+        reflection = this.reflection.analyze({
           text,
           emotionalSignal
         });
-
-    }
-
-
-    // -------------------------
-    // COMPLETE CORE RESULT
-    // -------------------------
-
-    return {
-
-      observation,
-
-      response,
-
-      emotionalState:
-        this.emotion.getState(),
-
-      relationship:
-        this.relationship.getState(),
-
-      reflection,
-
-      decision
-
-    };
-
-  }
-
-
-  // =========================================================
-  // AI CONNECTION
-  // =========================================================
-
-  async askAI(context = {}) {
-
-    const response =
-      await fetch("/api/chat", {
-
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-
-          message:
-            context.text,
-
-          emotionalSignal:
-            context.emotionalSignal,
-
-          memory:
-            this.getRecentMemory(),
-
-          emotion:
-            this.emotion.getState(),
-
-          relationship:
-            this.relationship.getState(),
-
-          reflection:
-            context.reflection,
-
-          decision:
-            context.decision
-
-        })
-
-      });
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        `AI endpoint error: ${response.status}`
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    if (
-      !data ||
-      typeof data.response !== "string" ||
-      !data.response.trim()
-    ) {
-
-      throw new Error(
-        "AI endpoint returned no response"
-      );
-
-    }
-
-
-    return data.response.trim();
-
-  }
-
-
-  // =========================================================
-  // RECENT MEMORY
-  // =========================================================
-
-  getRecentMemory() {
-
-    try {
-
-      if (
-        typeof this.memory.getAll === "function"
-      ) {
-
-        const items =
-          this.memory.getAll();
-
-        if (Array.isArray(items)) {
-
-          return items.slice(-10);
-
-        }
-
       }
 
+      if (this.reflection?.decide) {
+        decision = this.reflection.decide({
+          text,
+          reflection,
+          emotionalSignal
+        });
+      }
+
+      if (this.memory?.add) {
+        this.memory.add({
+          text,
+          emotionalSignal,
+          timestamp: Date.now()
+        });
+      }
+
+      const response = await this.askAI({
+        text,
+        emotionalSignal,
+        reflection,
+        decision
+      });
+
+      return {
+        response,
+        emotionalState: this.getEmotionState(),
+        relationship: this.getRelationshipState(),
+        reflection,
+        decision
+      };
+
     } catch (error) {
+      console.error("ISAI BRAIN ERROR:", error);
 
-      console.warn(
-        "Memory read error:",
-        error
+      return {
+        response: this.localFallback(text)
+      };
+    }
+  }
+
+  async askAI(context) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        message: context.text,
+
+        emotionalSignal: context.emotionalSignal,
+
+        memory: this.getRecentMemory(),
+
+        emotion: this.getEmotionState(),
+
+        relationship: this.getRelationshipState(),
+
+        reflection: context.reflection,
+
+        decision: context.decision
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `AI API failed with status ${response.status}`
       );
+    }
 
+    const data = await response.json();
+
+    if (!data || !data.response) {
+      throw new Error("AI response missing");
+    }
+
+    return String(data.response).trim();
+  }
+
+  getRecentMemory() {
+    try {
+      if (this.memory?.getAll) {
+        const memories = this.memory.getAll();
+
+        if (Array.isArray(memories)) {
+          return memories.slice(-10);
+        }
+      }
+    } catch (error) {
+      console.warn("Memory read failed:", error);
     }
 
     return [];
-
   }
 
-
-  // =========================================================
-  // LOCAL FALLBACK
-  // =========================================================
-
-  localFallback({
-    text,
-    emotionalSignal
-  }) {
-
-    if (!text) {
-
-      return (
-        "Naan inga irukken. " +
-        "Enna pesanum sollu."
-      );
-
+  getEmotionState() {
+    try {
+      if (this.emotion?.getState) {
+        return this.emotion.getState();
+      }
+    } catch (error) {
+      console.warn("Emotion state failed:", error);
     }
 
-
-    if (
-      emotionalSignal === "sad"
-    ) {
-
-      return (
-        "Akash, un message-la heavy feeling " +
-        "theriyudhu. Nee comfortable-aa irundha " +
-        "enna nadandhudhu nu sollu. Naan listen pannuren."
-      );
-
-    }
-
-
-    if (
-      emotionalSignal === "stress"
-    ) {
-
-      return (
-        "Seri Akash. Konjam slow down pannalam. " +
-        "Nee face panra problem-a one step-aa sollu. " +
-        "Namma together-aa paakalam."
-      );
-
-    }
-
-
-    if (
-      emotionalSignal === "happy"
-    ) {
-
-      return (
-        "Adhu kekka nalla irukku Akash. " +
-        "Innum sollu, enna happy-aa irukku?"
-      );
-
-    }
-
-
-    return (
-      "Un message receive panniten. " +
-      "AI connection ready aana, naan idha " +
-      "full-aa process panni reply pannuren."
-    );
-
+    return {};
   }
 
+  getRelationshipState() {
+    try {
+      if (this.relationship?.getState) {
+        return this.relationship.getState();
+      }
+    } catch (error) {
+      console.warn("Relationship state failed:", error);
+    }
 
-  // =========================================================
-  // INITIATIVE
-  // =========================================================
-
-  evaluateInitiative(context = {}) {
-
-    return this.initiative.evaluate(
-      context
-    );
-
+    return {};
   }
-
-
-  recordInitiation() {
-
-    this.initiative.recordInitiation();
-
-  }
-
-
-  // =========================================================
-  // EMOTION DETECTION
-  // =========================================================
 
   detectEmotion(text) {
-
-    const lower =
-      String(text || "").toLowerCase();
-
+    const lower = text.toLowerCase();
 
     if (
       lower.includes("sad") ||
       lower.includes("hurt") ||
       lower.includes("lonely") ||
       lower.includes("cry") ||
-      lower.includes("upset")
+      lower.includes("upset") ||
+      lower.includes("kastam") ||
+      lower.includes("pain")
     ) {
-
-      return "sad";
-
+      return {
+        type: "sad",
+        intensity: 0.7
+      };
     }
-
 
     if (
       lower.includes("stress") ||
       lower.includes("worried") ||
       lower.includes("afraid") ||
       lower.includes("tension") ||
-      lower.includes("panic")
+      lower.includes("panic") ||
+      lower.includes("bayam")
     ) {
-
-      return "stress";
-
+      return {
+        type: "stress",
+        intensity: 0.7
+      };
     }
-
 
     if (
       lower.includes("happy") ||
       lower.includes("good") ||
       lower.includes("great") ||
-      lower.includes("excited")
+      lower.includes("excited") ||
+      lower.includes("super")
     ) {
-
-      return "happy";
-
+      return {
+        type: "happy",
+        intensity: 0.7
+      };
     }
 
-
-    return null;
-
-  }
-
-
-  // =========================================================
-  // COMPLETE CORE STATE
-  // =========================================================
-
-  getState() {
-
     return {
-
-      emotion:
-        this.emotion.getState(),
-
-      relationship:
-        this.relationship.getState(),
-
-      memoryCount:
-        this.memory.count(),
-
-      initiative:
-        this.initiative.getState()
-
+      type: "neutral",
+      intensity: 0.2
     };
-
   }
 
+  localFallback(text) {
+    return `Kanna, un message enakku vandhudhu. Aana AI connection-la temporary problem irukku. Konjam later try pannalaam.`;
+  }
 }
 
-
-// ===========================================================
-// ISAI INSTANCE
-// ===========================================================
-
-export const isaiBrain =
-  new IsaiBrain();
+export const isaiBrain = new IsaiBrain();
