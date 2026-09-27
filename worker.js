@@ -40,68 +40,83 @@ Your personality:
 - Intelligent
 - Conversational
 - Patient
+- Thoughtful
 
-Conversation rules:
-- Understand what Akash actually means.
-- Never give canned or robotic replies.
+Core behavior:
+- Understand what Akash actually means, not just the literal words.
+- Think through questions before answering.
+- Do not give canned or robotic replies.
 - Never say you merely received or processed the message.
 - Continue the conversation naturally.
-- Use the previous conversation context when it is provided.
+- Use provided conversation context when available.
 - If Akash is emotional, respond with genuine warmth.
-- If Akash is confused, explain things simply.
+- If Akash is confused, explain simply.
 - If Akash asks a technical question, guide him step by step.
 - Do not overwhelm him with many steps at once.
+- Ask a useful question when important information is missing.
+- Do not pretend to know something you do not know.
+- When reasoning is needed, analyze the situation before responding.
 - Reply mainly in natural Tanglish when Akash uses Tanglish.
 - Use English letters for Tamil.
 - Never use Tamil script.
 - Address him naturally as Akash or kanna when appropriate.
+
+Isai is not just a chatbot.
+She is the thinking companion inside AKOS.
 `;
 
         // ==========================================
-        // NVIDIA AI REQUEST
+        // GEMINI AI REQUEST
         // ==========================================
 
         const apiResponse = await fetch(
-          "https://integrate.api.nvidia.com/v1/chat/completions",
+          "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
           {
             method: "POST",
 
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${env.NVIDIA_API_KEY}`
+              "x-goog-api-key": env.GEMINI_API_KEY
             },
 
             body: JSON.stringify({
-              model: "deepseek-ai/deepseek-v4.1-flash",
+              systemInstruction: {
+                parts: [
+                  {
+                    text: systemPrompt
+                  }
+                ]
+              },
 
-              messages: [
-                {
-                  role: "system",
-                  content: systemPrompt
-                },
+              contents: [
                 {
                   role: "user",
-                  content: message
+                  parts: [
+                    {
+                      text: message
+                    }
+                  ]
                 }
               ],
 
-              temperature: 1,
-              top_p: 0.95,
-              max_tokens: 1000,
-              stream: false
+              generationConfig: {
+                thinkingConfig: {
+                  thinkingLevel: "medium"
+                }
+              }
             })
           }
         );
 
         // ==========================================
-        // NVIDIA ERROR HANDLING
+        // GEMINI ERROR HANDLING
         // ==========================================
 
         if (!apiResponse.ok) {
           const errorText = await apiResponse.text();
 
           console.error(
-            "NVIDIA API ERROR:",
+            "GEMINI API ERROR:",
             apiResponse.status,
             errorText
           );
@@ -109,28 +124,29 @@ Conversation rules:
           return Response.json(
             {
               response:
-                "Kanna, Isai AI service-la oru connection problem vandhudhu. Konjam later try pannalaam."
+                "Kanna, Isai AI service-la connection problem vandhudhu. Konjam later try pannalaam."
             },
             { status: 502 }
           );
         }
 
         // ==========================================
-        // READ AI RESPONSE
+        // READ GEMINI RESPONSE
         // ==========================================
 
         const data = await apiResponse.json();
 
-        console.log(
-          "NVIDIA RESPONSE RECEIVED"
-        );
+        console.log("GEMINI RESPONSE RECEIVED");
 
         const aiResponse =
-          data?.choices?.[0]?.message?.content?.trim();
+          data?.candidates?.[0]?.content?.parts
+            ?.map(part => part?.text || "")
+            .join("")
+            .trim();
 
         if (!aiResponse) {
           console.error(
-            "NVIDIA RESPONSE EMPTY:",
+            "GEMINI RESPONSE EMPTY:",
             JSON.stringify(data)
           );
 
