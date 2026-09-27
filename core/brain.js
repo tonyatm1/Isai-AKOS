@@ -1,542 +1,1061 @@
 /*
- * =========================================================
- * ISAI · AKOS
- * CORE BRAIN
- *
- * Version: Clean AI Bridge
- *
- * Flow:
- * UI
- *  ↓
- * IsaiBrain
- *  ↓
- * /api/chat
- *  ↓
- * Cloudflare Worker
- *  ↓
- * NVIDIA AI
- * =========================================================
+=========================================================
+ISAI · AKOS
+CORE BRAIN
+
+Version: AKOS Foundation Brain
+
+Core Flow:
+
+OBSERVE
+↓
+UNDERSTAND
+↓
+RECALL
+↓
+EVALUATE
+↓
+EMOTION
+↓
+REFLECT
+↓
+DECIDE
+↓
+RESPOND / WAIT / INITIATE
+↓
+REMEMBER
+↓
+IMPROVE
+
+Current AI Bridge:
+
+UI
+↓
+IsaiBrain
+↓
+/api/chat
+↓
+Cloudflare Worker
+↓
+AI Model
+
+Future Layers:
+Memory · Emotion · Reason · Relationship
+Reflection · Initiative · Decision · Learning
+
+========================================================= */
+class IsaiBrain {
+constructor() {
+/*
+ * -------------------------------------------------------
+ * CORE STATE
+ * -------------------------------------------------------
  */
 
-class IsaiBrain {
+this.ready = false;
 
-  constructor() {
+this.sessionStartedAt = Date.now();
 
-    this.ready = false;
+this.messageCount = 0;
 
-    this.sessionStartedAt =
-      Date.now();
 
-    this.messageCount = 0;
+/*
+ * -------------------------------------------------------
+ * MEMORY
+ * -------------------------------------------------------
+ */
 
-    this.memory = [];
+this.memory = [];
 
-    this.emotion = {
-      type: "neutral",
-      intensity: 0.2
-    };
 
-    this.relationship = {
-      interactions: 0
-    };
+/*
+ * -------------------------------------------------------
+ * EMOTION
+ * -------------------------------------------------------
+ *
+ * This represents Isai's modeled emotional state.
+ */
 
-    this.reflection = null;
+this.emotion = {
 
-    this.initiative = {
-      enabled: false
-    };
+  type: "neutral",
 
-    console.log(
-      "ISAI BRAIN: initializing..."
-    );
+  intensity: 0.2
 
-  }
+};
+
+
+/*
+ * -------------------------------------------------------
+ * RELATIONSHIP
+ * -------------------------------------------------------
+ */
+
+this.relationship = {
+
+  interactions: 0,
+
+  lastInteraction: null,
+
+  familiarity: 0
+
+};
+
+
+/*
+ * -------------------------------------------------------
+ * REFLECTION
+ * -------------------------------------------------------
+ */
+
+this.reflection = {
+
+  inputLength: 0,
+
+  hasQuestion: false,
+
+  emotionalSignal: null,
+
+  recentMemoryCount: 0
+
+};
+
+
+/*
+ * -------------------------------------------------------
+ * DECISION
+ * -------------------------------------------------------
+ */
+
+this.decision = {
+
+  action: "respond",
+
+  confidence: 0.5,
+
+  reason: "default_response"
+
+};
+
+
+/*
+ * -------------------------------------------------------
+ * INITIATIVE
+ * -------------------------------------------------------
+ *
+ * Initiative is disabled until its own layer is ready.
+ */
+
+this.initiative = {
+
+  enabled: false,
+
+  pending: false,
+
+  reason: null
+
+};
+
+
+/*
+ * -------------------------------------------------------
+ * LEARNING
+ * -------------------------------------------------------
+ */
+
+this.learning = {
+
+  enabled: false,
+
+  observations: 0,
+
+  improvements: 0
+
+};
+
+
+/*
+ * -------------------------------------------------------
+ * CORE LOOP STATE
+ * -------------------------------------------------------
+ */
+
+this.cycle = {
+
+  stage: "idle",
+
+  startedAt: null,
+
+  completedAt: null
+
+};
+
+
+console.log(
+  "ISAI AKOS BRAIN: initializing..."
+);
+}
+/*
+=========================================================
+MAIN PROCESS
+========================================================= */
+async process(input = {}) {
+const text =
+  String(
+    input.text || ""
+  ).trim();
+
+
+/*
+ * Empty input
+ */
+
+if (!text) {
+
+  return this.buildResult(
+    "Kanna, enna pesanum sollu."
+  );
+
+}
+
+
+try {
+
+  this.cycle.startedAt =
+    Date.now();
 
 
   /*
-   * ---------------------------------------------------------
-   * MAIN PROCESS
-   * ---------------------------------------------------------
+   * -----------------------------------------------------
+   * 1. OBSERVE
+   * -----------------------------------------------------
    */
 
-  async process(input = {}) {
+  this.cycle.stage =
+    "observe";
 
-    const text =
-      String(
-        input.text || ""
-      ).trim();
 
+  const observation = {
 
-    if (!text) {
+    text,
 
-      return {
-        response:
-          "Kanna, enna pesanum sollu.",
+    timestamp:
+      Date.now(),
 
-        emotionalState:
-          this.emotion,
+    userPresent:
+      input.userPresent !== false,
 
-        relationship:
-          this.relationship,
+    meaningful:
+      input.meaningful === true ||
+      text.length > 20
 
-        reflection:
-          null,
-
-        decision:
-          null
-      };
-
-    }
-
-
-    try {
-
-      this.messageCount++;
-
-
-      /*
-       * Detect basic emotional signal
-       */
-
-      const emotionalSignal =
-        this.detectEmotion(
-          text
-        );
-
-
-      this.emotion =
-        emotionalSignal;
-
-
-      /*
-       * Store lightweight memory
-       */
-
-      this.remember({
-        text,
-        emotionalSignal,
-        timestamp:
-          Date.now()
-      });
-
-
-      /*
-       * Relationship state
-       */
-
-      this.relationship = {
-
-        interactions:
-          this.messageCount,
-
-        lastInteraction:
-          Date.now()
-
-      };
-
-
-      /*
-       * Simple reflection layer
-       */
-
-      this.reflection = {
-
-        inputLength:
-          text.length,
-
-        emotionalSignal,
-
-        hasQuestion:
-          text.includes("?"),
-
-        recentMemoryCount:
-          this.memory.length
-
-      };
-
-
-      /*
-       * AI REQUEST
-       */
-
-      const response =
-        await this.askAI({
-
-          text,
-
-          emotionalSignal,
-
-          memory:
-            this.getRecentMemory(),
-
-          emotion:
-            this.emotion,
-
-          relationship:
-            this.relationship,
-
-          reflection:
-            this.reflection
-
-        });
-
-
-      this.ready =
-        true;
-
-
-      return {
-
-        response,
-
-        emotionalState:
-          this.emotion,
-
-        relationship:
-          this.relationship,
-
-        reflection:
-          this.reflection,
-
-        decision:
-          null
-
-      };
-
-
-    } catch (error) {
-
-      console.error(
-        "ISAI BRAIN ERROR:",
-        error
-      );
-
-
-      /*
-       * Important:
-       * Never crash the UI.
-       */
-
-      return {
-
-        response:
-          "Kanna, Isai AI connection-la konjam problem vandhudhu. Konjam later try pannalaam.",
-
-        emotionalState:
-          this.emotion,
-
-        relationship:
-          this.relationship,
-
-        reflection:
-          this.reflection,
-
-        decision:
-          null
-
-      };
-
-    }
-
-  }
+  };
 
 
   /*
-   * ---------------------------------------------------------
-   * AI BRIDGE
-   * ---------------------------------------------------------
+   * -----------------------------------------------------
+   * 2. UNDERSTAND
+   * -----------------------------------------------------
    */
 
-  async askAI(context) {
-
-    console.log(
-      "ISAI → /api/chat"
-    );
+  this.cycle.stage =
+    "understand";
 
 
-    const response =
-      await fetch(
-        "/api/chat",
-        {
-          method:
-            "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-
-              message:
-                context.text,
-
-              emotionalSignal:
-                context.emotionalSignal,
-
-              memory:
-                context.memory,
-
-              emotion:
-                context.emotion,
-
-              relationship:
-                context.relationship,
-
-              reflection:
-                context.reflection
-
-            })
-
-        }
-      );
+  const emotionalSignal =
+    this.detectEmotion(text);
 
 
-    console.log(
-      "ISAI API STATUS:",
-      response.status
-    );
+  const understanding = {
 
+    text,
 
-    if (!response.ok) {
+    emotionalSignal,
 
-      const errorText =
-        await response.text();
+    hasQuestion:
+      this.detectQuestion(text),
 
-      console.error(
-        "ISAI API ERROR:",
-        errorText
-      );
+    length:
+      text.length
 
-
-      throw new Error(
-        `AI API failed: ${response.status}`
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    console.log(
-      "ISAI AI RESPONSE:",
-      data
-    );
-
-
-    if (
-      !data ||
-      typeof data.response !== "string" ||
-      !data.response.trim()
-    ) {
-
-      throw new Error(
-        "AI response missing"
-      );
-
-    }
-
-
-    return data.response.trim();
-
-  }
+  };
 
 
   /*
-   * ---------------------------------------------------------
-   * MEMORY
-   * ---------------------------------------------------------
+   * -----------------------------------------------------
+   * 3. RECALL
+   * -----------------------------------------------------
    */
 
-  remember(item) {
-
-    this.memory.push(
-      item
-    );
+  this.cycle.stage =
+    "recall";
 
 
-    /*
-     * Keep browser memory small
-     */
-
-    if (
-      this.memory.length > 50
-    ) {
-
-      this.memory =
-        this.memory.slice(-50);
-
-    }
-
-  }
-
-
-  getRecentMemory() {
-
-    return this.memory.slice(-10);
-
-  }
+  const recentMemory =
+    this.getRecentMemory();
 
 
   /*
-   * ---------------------------------------------------------
-   * EMOTION DETECTION
-   * ---------------------------------------------------------
+   * -----------------------------------------------------
+   * 4. EVALUATE
+   * -----------------------------------------------------
    */
 
-  detectEmotion(text) {
-
-    const lower =
-      text.toLowerCase();
+  this.cycle.stage =
+    "evaluate";
 
 
-    if (
-      lower.includes("sad") ||
-      lower.includes("hurt") ||
-      lower.includes("lonely") ||
-      lower.includes("cry") ||
-      lower.includes("upset") ||
-      lower.includes("pain") ||
-      lower.includes("kastam") ||
-      lower.includes("sogam")
-    ) {
+  const evaluation = {
 
-      return {
+    meaningful:
+      observation.meaningful,
 
-        type:
-          "sad",
+    hasQuestion:
+      understanding.hasQuestion,
 
-        intensity:
-          0.7
+    emotionalType:
+      emotionalSignal.type,
 
-      };
+    memoryAvailable:
+      recentMemory.length > 0
 
-    }
-
-
-    if (
-      lower.includes("stress") ||
-      lower.includes("worried") ||
-      lower.includes("afraid") ||
-      lower.includes("tension") ||
-      lower.includes("panic") ||
-      lower.includes("bayam") ||
-      lower.includes("fear")
-    ) {
-
-      return {
-
-        type:
-          "stress",
-
-        intensity:
-          0.7
-
-      };
-
-    }
-
-
-    if (
-      lower.includes("happy") ||
-      lower.includes("good") ||
-      lower.includes("great") ||
-      lower.includes("excited") ||
-      lower.includes("super") ||
-      lower.includes("sandhosham")
-    ) {
-
-      return {
-
-        type:
-          "happy",
-
-        intensity:
-          0.7
-
-      };
-
-    }
-
-
-    if (
-      lower.includes("angry") ||
-      lower.includes("mad") ||
-      lower.includes("kovam")
-    ) {
-
-      return {
-
-        type:
-          "angry",
-
-        intensity:
-          0.7
-
-      };
-
-    }
-
-
-    return {
-
-      type:
-        "neutral",
-
-      intensity:
-        0.2
-
-    };
-
-  }
+  };
 
 
   /*
-   * ---------------------------------------------------------
-   * CORE STATUS
-   * ---------------------------------------------------------
+   * -----------------------------------------------------
+   * 5. EMOTION
+   * -----------------------------------------------------
    */
 
-  getStatus() {
+  this.cycle.stage =
+    "emotion";
 
-    return {
 
-      ready:
-        this.ready,
+  this.emotion =
+    emotionalSignal;
 
-      messages:
-        this.messageCount,
 
-      memory:
-        this.memory.length,
+  /*
+   * -----------------------------------------------------
+   * 6. RELATIONSHIP
+   * -----------------------------------------------------
+   */
+
+  this.messageCount++;
+
+
+  this.relationship = {
+
+    interactions:
+      this.messageCount,
+
+    lastInteraction:
+      Date.now(),
+
+    familiarity:
+      Math.min(
+        1,
+        this.messageCount / 100
+      )
+
+  };
+
+
+  /*
+   * -----------------------------------------------------
+   * 7. REFLECT
+   * -----------------------------------------------------
+   */
+
+  this.cycle.stage =
+    "reflect";
+
+
+  this.reflection = {
+
+    inputLength:
+      text.length,
+
+    emotionalSignal,
+
+    hasQuestion:
+      understanding.hasQuestion,
+
+    recentMemoryCount:
+      recentMemory.length,
+
+    meaningful:
+      observation.meaningful
+
+  };
+
+
+  /*
+   * -----------------------------------------------------
+   * 8. DECIDE
+   * -----------------------------------------------------
+   */
+
+  this.cycle.stage =
+    "decide";
+
+
+  this.decision =
+    this.makeDecision({
+
+      text,
+
+      observation,
+
+      understanding,
+
+      evaluation,
 
       emotion:
         this.emotion,
 
-      uptime:
-        Date.now() -
-        this.sessionStartedAt
+      reflection:
+        this.reflection
 
-    };
+    });
+
+
+  /*
+   * -----------------------------------------------------
+   * 9. AI RESPONSE
+   * -----------------------------------------------------
+   */
+
+  this.cycle.stage =
+    "respond";
+
+
+  const response =
+    await this.askAI({
+
+      text,
+
+      observation,
+
+      understanding,
+
+      evaluation,
+
+      emotion:
+        this.emotion,
+
+      memory:
+        recentMemory,
+
+      relationship:
+        this.relationship,
+
+      reflection:
+        this.reflection,
+
+      decision:
+        this.decision
+
+    });
+
+
+  /*
+   * -----------------------------------------------------
+   * 10. REMEMBER
+   * -----------------------------------------------------
+   */
+
+  this.cycle.stage =
+    "remember";
+
+
+  this.remember({
+
+    text,
+
+    response,
+
+    emotionalSignal,
+
+    timestamp:
+      Date.now()
+
+  });
+
+
+  /*
+   * -----------------------------------------------------
+   * 11. IMPROVE
+   * -----------------------------------------------------
+   */
+
+  this.cycle.stage =
+    "improve";
+
+
+  if (
+    observation.meaningful
+  ) {
+
+    this.learning.observations++;
 
   }
+
+
+  this.cycle.completedAt =
+    Date.now();
+
+
+  this.cycle.stage =
+    "complete";
+
+
+  this.ready =
+    true;
+
+
+  return this.buildResult(
+    response
+  );
+
+
+} catch (error) {
+
+  console.error(
+    "ISAI AKOS BRAIN ERROR:",
+    error
+  );
+
+
+  this.cycle.stage =
+    "error";
+
+
+  /*
+   * Never allow the brain
+   * to crash the UI.
+   */
+
+  return {
+
+    response:
+      "Kanna, Isai AI connection-la konjam problem vandhudhu. Konjam later try pannalaam.",
+
+    emotionalState:
+      this.emotion,
+
+    relationship:
+      this.relationship,
+
+    reflection:
+      this.reflection,
+
+    decision:
+      this.decision,
+
+    cycle:
+      this.cycle
+
+  };
+
+}
+}
+/*
+=========================================================
+AI BRIDGE
+========================================================= */
+async askAI(context) {
+console.log(
+  "ISAI → /api/chat"
+);
+
+
+const response =
+  await fetch(
+    "/api/chat",
+    {
+
+      method:
+        "POST",
+
+      headers: {
+
+        "Content-Type":
+          "application/json"
+
+      },
+
+      body:
+        JSON.stringify({
+
+          message:
+            context.text,
+
+          observation:
+            context.observation,
+
+          understanding:
+            context.understanding,
+
+          evaluation:
+            context.evaluation,
+
+          emotionalSignal:
+            context.emotion,
+
+          memory:
+            context.memory,
+
+          emotion:
+            context.emotion,
+
+          relationship:
+            context.relationship,
+
+          reflection:
+            context.reflection,
+
+          decision:
+            context.decision
+
+        })
+
+    }
+  );
+
+
+console.log(
+  "ISAI API STATUS:",
+  response.status
+);
+
+
+if (!response.ok) {
+
+  const errorText =
+    await response.text();
+
+
+  console.error(
+    "ISAI API ERROR:",
+    errorText
+  );
+
+
+  throw new Error(
+    `AI API failed: ${response.status}`
+  );
+
+}
+
+
+const data =
+  await response.json();
+
+
+console.log(
+  "ISAI AI RESPONSE:",
+  data
+);
+
+
+if (
+  !data ||
+  typeof data.response !== "string" ||
+  !data.response.trim()
+) {
+
+  throw new Error(
+    "AI response missing"
+  );
+
+}
+
+
+return data.response.trim();
+}
+/*
+=========================================================
+MEMORY
+========================================================= */
+remember(item) {
+this.memory.push(
+  item
+);
+
+
+/*
+ * Browser memory limit
+ */
+
+if (
+  this.memory.length > 50
+) {
+
+  this.memory =
+    this.memory.slice(-50);
+
+}
+}
+getRecentMemory() {
+return this.memory.slice(-10);
+}
+/*
+=========================================================
+EMOTION DETECTION
+========================================================= */
+detectEmotion(text) {
+const lower =
+  text.toLowerCase();
+
+
+/*
+ * SAD
+ */
+
+if (
+
+  lower.includes("sad") ||
+  lower.includes("hurt") ||
+  lower.includes("lonely") ||
+  lower.includes("cry") ||
+  lower.includes("upset") ||
+  lower.includes("pain") ||
+  lower.includes("kastam") ||
+  lower.includes("sogam") ||
+  lower.includes("azhugai") ||
+  lower.includes("feel bad")
+
+) {
+
+  return {
+
+    type:
+      "sad",
+
+    intensity:
+      0.7
+
+  };
 
 }
 
 
 /*
- * =========================================================
- * SINGLE ISAI CORE INSTANCE
- * =========================================================
+ * STRESS
  */
 
-export const isaiBrain =
-  new IsaiBrain();
+if (
+
+  lower.includes("stress") ||
+  lower.includes("worried") ||
+  lower.includes("afraid") ||
+  lower.includes("tension") ||
+  lower.includes("panic") ||
+  lower.includes("bayam") ||
+  lower.includes("fear") ||
+  lower.includes("pressure") ||
+  lower.includes("overthink")
+
+) {
+
+  return {
+
+    type:
+      "stress",
+
+    intensity:
+      0.7
+
+  };
+
+}
 
 
-console.log(
-  "ISAI BRAIN: ONLINE"
+/*
+ * HAPPY
+ */
+
+if (
+
+  lower.includes("happy") ||
+  lower.includes("good") ||
+  lower.includes("great") ||
+  lower.includes("excited") ||
+  lower.includes("super") ||
+  lower.includes("sandhosham") ||
+  lower.includes("jolly") ||
+  lower.includes("nice")
+
+) {
+
+  return {
+
+    type:
+      "happy",
+
+    intensity:
+      0.7
+
+  };
+
+}
+
+
+/*
+ * ANGRY
+ */
+
+if (
+
+  lower.includes("angry") ||
+  lower.includes("mad") ||
+  lower.includes("kovam") ||
+  lower.includes("erritation") ||
+  lower.includes("irritated")
+
+) {
+
+  return {
+
+    type:
+      "angry",
+
+    intensity:
+      0.7
+
+  };
+
+}
+
+
+/*
+ * CALM / POSITIVE
+ */
+
+if (
+
+  lower.includes("calm") ||
+  lower.includes("peace") ||
+  lower.includes("relaxed") ||
+  lower.includes("nimmadhi")
+
+) {
+
+  return {
+
+    type:
+      "calm",
+
+    intensity:
+      0.6
+
+  };
+
+}
+
+
+/*
+ * DEFAULT
+ */
+
+return {
+
+  type:
+    "neutral",
+
+  intensity:
+    0.2
+
+};
+}
+/*
+=========================================================
+QUESTION DETECTION
+========================================================= */
+detectQuestion(text) {
+const lower =
+  text.toLowerCase();
+
+
+return (
+
+  text.includes("?") ||
+
+  lower.startsWith("why ") ||
+
+  lower.startsWith("what ") ||
+
+  lower.startsWith("how ") ||
+
+  lower.startsWith("when ") ||
+
+  lower.startsWith("where ") ||
+
+  lower.startsWith("who ") ||
+
+  lower.startsWith("can ") ||
+
+  lower.startsWith("is ") ||
+
+  lower.startsWith("enna ") ||
+
+  lower.startsWith("epdi ") ||
+
+  lower.startsWith("eppo ") ||
+
+  lower.startsWith("yen ") ||
+
+  lower.startsWith("yaaru ")
+
 );
+}
+/*
+=========================================================
+DECISION ENGINE
+========================================================= */
+makeDecision(context) {
+/*
+ * For now the decision engine is
+ * conservative.
+ *
+ * Future Layer 6 can expand this
+ * into real initiative decisions.
+ */
+
+if (
+  context.understanding.hasQuestion
+) {
+
+  return {
+
+    action:
+      "answer",
+
+    confidence:
+      0.8,
+
+    reason:
+      "question_detected"
+
+  };
+
+}
+
+
+if (
+  context.emotion.intensity >= 0.7
+) {
+
+  return {
+
+    action:
+      "support",
+
+    confidence:
+      0.8,
+
+    reason:
+      "strong_emotional_signal"
+
+  };
+
+}
+
+
+return {
+
+  action:
+    "respond",
+
+  confidence:
+    0.6,
+
+  reason:
+    "normal_conversation"
+
+};
+}
+/*
+=========================================================
+RESULT BUILDER
+========================================================= */
+buildResult(response) {
+return {
+
+  response,
+
+  emotionalState:
+    this.emotion,
+
+  relationship:
+    this.relationship,
+
+  reflection:
+    this.reflection,
+
+  decision:
+    this.decision,
+
+  initiative:
+    this.initiative,
+
+  learning:
+    this.learning,
+
+  cycle:
+    this.cycle
+
+};
+}
+/*
+=========================================================
+CORE STATUS
+========================================================= */
+getStatus() {
+return {
+
+  ready:
+    this.ready,
+
+  messages:
+    this.messageCount,
+
+  memory:
+    this.memory.length,
+
+  emotion:
+    this.emotion,
+
+  relationship:
+    this.relationship,
+
+  reflection:
+    this.reflection,
+
+  decision:
+    this.decision,
+
+  initiative:
+    this.initiative,
+
+  learning:
+    this.learning,
+
+  cycle:
+    this.cycle,
+
+  uptime:
+    Date.now() -
+    this.sessionStartedAt
+
+};
+}
+}
+/*
+=========================================================
+SINGLE ISAI CORE INSTANCE
+========================================================= */
+export const isaiBrain = new IsaiBrain();
+console.log( "ISAI AKOS BRAIN: ONLINE" );
