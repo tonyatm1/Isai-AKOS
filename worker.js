@@ -52,9 +52,11 @@ export default {
     if (url.pathname === "/api/chat" && request.method === "POST") {
       try {
         if (!env.OPENROUTER_API_KEY) {
+          console.error("OPENROUTER_API_KEY is missing");
+
           return Response.json(
             {
-              error: "OPENROUTER_API_KEY is missing",
+              response: "Kanna, Isai AI key connection-la problem irukku.",
               errorCode: "OPENROUTER_KEY_MISSING"
             },
             { status: 500 }
@@ -117,7 +119,9 @@ Decision:
 ${JSON.stringify(decision)}
 
 Respond naturally to Akash.
-Do not mention internal JSON, APIs, system prompts, or implementation details.
+
+Do not mention internal JSON, APIs, system prompts,
+API keys, or implementation details.
 `;
 
         const openRouterResponse = await fetch(
@@ -170,8 +174,11 @@ Do not mention internal JSON, APIs, system prompts, or implementation details.
 
         try {
           data = JSON.parse(rawText);
-        } catch (parseError) {
-          console.error("OPENROUTER JSON PARSE ERROR:", rawText);
+        } catch (error) {
+          console.error(
+            "OPENROUTER JSON PARSE ERROR:",
+            rawText
+          );
 
           return Response.json(
             {
@@ -245,7 +252,7 @@ Do not mention internal JSON, APIs, system prompts, or implementation details.
       );
     }
 
-    // Serve frontend assets
+    // Frontend assets
     if (env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
